@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:smooth_app/data_models/continuous_scan_model.dart';
 import 'package:smooth_app/main.dart';
 import 'package:smooth_app/pages/scan/lifecycle_manager.dart';
+import 'package:smooth_app/pages/scan/resize_image.dart';
 
 class MLKitScannerPage extends StatefulWidget {
   const MLKitScannerPage({Key? key}) : super(key: key);
@@ -166,6 +167,7 @@ class MLKitScannerPageState extends State<MLKitScannerPage> {
 
   // Convert the [CameraImage] to a [InputImage] and checking this for barcodes
   // with help from ML Kit
+  // TODO(M123): Maybe put into isolate
   Future<void> _processCameraImage(CameraImage image) async {
     //Only scanning every xth image, but not resetting until the current one
     //is done, so that we don't have idle time when the scanning takes longer
@@ -186,7 +188,14 @@ class MLKitScannerPageState extends State<MLKitScannerPage> {
     for (final Plane plane in image.planes) {
       allBytes.putUint8List(plane.bytes);
     }
-    final Uint8List bytes = allBytes.done().buffer.asUint8List();
+    Uint8List? bytes = allBytes.done().buffer.asUint8List();
+
+    bytes = resizeImage(bytes);
+
+    if (bytes == null) {
+      isBusy = false;
+      return;
+    }
 
     final Size imageSize =
         Size(image.width.toDouble(), image.height.toDouble());
@@ -198,7 +207,9 @@ class MLKitScannerPageState extends State<MLKitScannerPage> {
 
     final InputImageFormat inputImageFormat =
         InputImageFormatMethods.fromRawValue(
-              int.parse(image.format.raw.toString()),
+              int.parse(
+                image.format.raw.toString(),
+              ),
             ) ??
             InputImageFormat.NV21;
 
